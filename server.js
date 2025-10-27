@@ -2,44 +2,52 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const oracledb = require("oracledb");
-const path = require("path");
 const dbConfig = require("./dbConfig");
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// Serve static files from frontend
-app.use(express.static(path.join(__dirname, "../frontend")));
+app.get("/", (req, res) => {
+  res.send("Welcome to Oracle Backend Server 🚀");
+});
 
-// Route for inserting user data into Oracle
-app.post("/submit", async (req, res) => {
-  const { name, relation } = req.body;
-
+async function insertUserData(name, relation) {
+  let connection;
   try {
-    const connection = await oracledb.getConnection(dbConfig);
+    connection = await oracledb.getConnection(dbConfig);
     await connection.execute(
       `INSERT INTO USER_RELATION (NAME, RELATION) VALUES (:name, :relation)`,
       [name, relation],
       { autoCommit: true }
     );
-    await connection.close();
+    console.log("✅ Data inserted successfully!");
+  } catch (err) {
+    console.error("❌ Error inserting data:", err);
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+}
+
+app.post("/submit", async (req, res) => {
+  const { name, relation } = req.body;
+  try {
+    await insertUserData(name, relation);
     res.status(200).send("Data inserted successfully!");
   } catch (error) {
-    console.error("Error inserting data:", error);
-    res.status(500).send("Error inserting data into Oracle DB.");
+    res.status(500).send("Error inserting data into database.");
   }
 });
 
-// Default route to serve index.html
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/index.html"));
-});
-
-// Start server
-const PORT = 8080;
+// ✅ Use dynamic Render port
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
